@@ -1,6 +1,12 @@
 ZSH_DISABLE_COMPFIX="true"
-# If you come from bash you might have to change your $PATH.
-# export PATH=$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH
+
+# PATH configuration
+export PATH="$HOME/.npm-global/bin:$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
+
+# Homebrew for Linux
+if [[ -d "/home/linuxbrew/.linuxbrew" ]]; then
+    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
 
 # Path to your Oh My Zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
