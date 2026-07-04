@@ -132,3 +132,41 @@ alias ls="eza --icons=always"
 # ---- Zoxide (better cd) ----
 eval "$(zoxide init zsh)"
 alias cd="z"
+
+# OpenClaw Completion
+source "/home/wiz/.openclaw/completions/openclaw.zsh"
+
+# === Подключение к tmux (tmux-attach) ===
+# Простое подключение к tmux
+# Использование: tmux-attach [имя_сессии]
+tmux-attach() {
+    local SESSION_NAME="${1:-OpenClaw}"
+    tmux attach -t "$SESSION_NAME" 2>/dev/null || tmux new-session -s "$SESSION_NAME"
+}
+
+# Алиас для быстрого подключения
+alias ta="tmux-attach OpenClaw"
+
+# === Авто-обёртка claude в tmux (ОТЛАДКА, не коммитить пока не проверим) ===
+# Вне tmux: создаёт/подключает tmux-сессию с именем текущей папки и запускает claude внутри
+# Внутри tmux: просто запускает claude как обычно, без вложенной сессии
+claude() {
+    if [[ -n "$TMUX" ]]; then
+        command claude "$@"
+        return
+    fi
+
+    local session_name
+    session_name=$(basename "$PWD" | tr -c 'a-zA-Z0-9_-' '-')
+
+    if tmux has-session -t "$session_name" 2>/dev/null; then
+        echo "Найдена активная tmux-сессия '$session_name', подключаюсь..."
+        tmux attach -t "$session_name"
+    else
+        echo "Создаю tmux-сессию '$session_name' и запускаю claude..."
+        tmux new-session -s "$session_name" -c "$PWD" "command claude ${(q@)@}"
+    fi
+}
+
+export PATH=$PATH:~/go/bin
+umask 0022
