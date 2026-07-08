@@ -133,8 +133,8 @@ alias ls="eza --icons=always"
 eval "$(zoxide init zsh)"
 alias cd="z"
 
-# OpenClaw Completion
-source "/home/wiz/.openclaw/completions/openclaw.zsh"
+# OpenClaw Completion (только на серверах, где установлен OpenClaw)
+[[ -f "/home/wiz/.openclaw/completions/openclaw.zsh" ]] && source "/home/wiz/.openclaw/completions/openclaw.zsh"
 
 # === Подключение к tmux (tmux-attach) ===
 # Простое подключение к tmux
@@ -147,25 +147,39 @@ tmux-attach() {
 # Алиас для быстрого подключения
 alias ta="tmux-attach OpenClaw"
 
-# === Авто-обёртка claude в tmux (ОТЛАДКА, не коммитить пока не проверим) ===
-# Вне tmux: создаёт/подключает tmux-сессию с именем текущей папки и запускает claude внутри
-# Внутри tmux: просто запускает claude как обычно, без вложенной сессии
+# === Авто-обёртка claude в Herdr (портировано с tmux-версии) ===
+# Внутри Herdr ($HERDR_ENV задан) — просто запускает claude как обычно.
+# Вне Herdr — ищет workspace, у которого root cwd совпадает с текущей папкой:
+#   - если нашёлся — просто подключается (herdr сам фокусирует нужный workspace по cwd);
+#   - если нет — создаёт workspace для этой папки, запускает в нём claude, затем подключается.
 claude() {
-    if [[ -n "$TMUX" ]]; then
+    if [[ -n "$HERDR_ENV" ]]; then
         command claude "$@"
         return
     fi
 
-    local session_name
-    session_name=$(basename "$PWD" | tr -c 'a-zA-Z0-9_-' '-')
-
-    if tmux has-session -t "$session_name" 2>/dev/null; then
-        echo "Найдена активная tmux-сессия '$session_name', подключаюсь..."
-        tmux attach -t "$session_name"
-    else
-        echo "Создаю tmux-сессию '$session_name' и запускаю claude..."
-        tmux new-session -s "$session_name" -c "$PWD" "command claude ${(q@)@}"
+    if ! command -v herdr >/dev/null 2>&1; then
+        command claude "$@"
+        return
     fi
+
+    local cwd="$PWD"
+    local existing_workspace
+    existing_workspace=$(herdr pane list 2>/dev/null | jq -r --arg cwd "$cwd" \
+        '.result.panes[]? | select(.cwd == $cwd) | .workspace_id' 2>/dev/null | head -n1)
+
+    if [[ -z "$existing_workspace" ]]; then
+        local label
+        label=$(basename "$cwd" | tr -c 'a-zA-Z0-9_-' '-')
+        local pane_id
+        pane_id=$(herdr workspace create --cwd "$cwd" --label "$label" --focus 2>/dev/null \
+            | jq -r '.result.root_pane.pane_id' 2>/dev/null)
+        if [[ -n "$pane_id" && "$pane_id" != "null" ]]; then
+            herdr pane run "$pane_id" "command claude ${(q@)@}" >/dev/null 2>&1
+        fi
+    fi
+
+    herdr
 }
 
 export PATH=$PATH:~/go/bin
