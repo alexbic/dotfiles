@@ -1,6 +1,12 @@
 ZSH_DISABLE_COMPFIX="true"
-# If you come from bash you might have to change your $PATH.
-# export PATH=$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH
+
+# PATH configuration
+export PATH="$HOME/.npm-global/bin:$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
+
+# Homebrew for Linux
+if [[ -d "/home/linuxbrew/.linuxbrew" ]]; then
+    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
 
 # Path to your Oh My Zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
@@ -123,6 +129,20 @@ source $ZSH/oh-my-zsh.sh
 # # ---- Eza (better ls) -----
 alias ls="eza --icons=always"
 
+# OpenClaw Completion (только на серверах, где установлен OpenClaw)
+[[ -f "/home/wiz/.openclaw/completions/openclaw.zsh" ]] && source "/home/wiz/.openclaw/completions/openclaw.zsh"
+
+# === Подключение к tmux (tmux-attach) ===
+# Простое подключение к tmux
+# Использование: tmux-attach [имя_сессии]
+tmux-attach() {
+    local SESSION_NAME="${1:-OpenClaw}"
+    tmux attach -t "$SESSION_NAME" 2>/dev/null || tmux new-session -s "$SESSION_NAME"
+}
+
+# Алиас для быстрого подключения
+alias ta="tmux-attach OpenClaw"
+
 # === Авто-обёртка claude в Herdr (портировано с tmux-версии из dotfiles@006502f) ===
 # Внутри Herdr ($HERDR_ENV задан) — просто запускает claude как обычно.
 # Вне Herdr — ищет workspace, у которого root cwd совпадает с текущей папкой:
@@ -181,6 +201,9 @@ compinit
 export PATH="$PATH:/Applications/Visual Studio Code.app/Contents/Resources/app/bin"
 export JAVA_HOME=$(/usr/libexec/java_home -v 17)
 export CLAUDE_CODE_MAX_OUTPUT_TOKENS=64000
+
+export PATH=$PATH:~/go/bin
+umask 0022
 
 # ---- Zoxide (better cd) ----
 if command -v zoxide >/dev/null 2>&1; then
