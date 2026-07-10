@@ -11,7 +11,7 @@
 - **Внутри Herdr** (`$HERDR_ENV` задан) — просто запускает `claude` как обычно (`command claude "$@"`), без вложенного workspace.
 - **Вне Herdr** — через `herdr pane list | jq` ищет workspace, у которого root cwd совпадает с текущей директорией:
   - если нашёлся — просто подключается (`herdr` сам фокусирует нужный workspace по текущей директории), продолжая предыдущую работу;
-  - если нет — создаёт новый workspace (`herdr workspace create --cwd "$PWD" --label <имя_папки> --focus`), запускает в нём `claude` (`herdr pane run <pane_id> "command claude ..."`), затем подключается.
+  - если нет — создаёт новый workspace (`herdr workspace create --cwd "$PWD" --label <имя_папки> --focus`), дожидается готовности шелла в новой панели (`herdr wait output <pane_id> --match '➤'` — иначе `.zshrc`/nvm ещё не успели отработать и PATH не содержит `claude`), запускает в нём `claude` (`herdr pane run <pane_id> "command claude ..."`), затем подключается.
 
 Смысл: workspace'ы Herdr переживают закрытие терминала (пока сервер не перезагружен) — можно вернуться в ту же папку и продолжить работу с того же места, а не терять контекст Claude Code.
 

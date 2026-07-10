@@ -175,6 +175,9 @@ claude() {
         pane_id=$(herdr workspace create --cwd "$cwd" --label "$label" --focus 2>/dev/null \
             | jq -r '.result.root_pane.pane_id' 2>/dev/null)
         if [[ -n "$pane_id" && "$pane_id" != "null" ]]; then
+            # Ждём готовности шелла в новой панели (иначе .zshrc/nvm ещё не
+            # успели отработать, и PATH не содержит claude — гонка).
+            herdr wait output "$pane_id" --match '➤' --timeout 5000 >/dev/null 2>&1
             herdr pane run "$pane_id" "command claude ${(q@)@}" >/dev/null 2>&1
         fi
     fi
