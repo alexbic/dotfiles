@@ -72,7 +72,7 @@ HIST_STAMPS="dd/mm/yyyy"
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
 #plugins=(git)
-plugins=(git tmux zsh-autosuggestions zsh-syntax-highlighting jsontools history colored-man-pages)
+plugins=(git zsh-autosuggestions zsh-syntax-highlighting jsontools history colored-man-pages)
 
 ZSH_HIGHLIGHT_HIGHLIGHTERS=(main brackets pattern cursor root)
 # Declare the variable
@@ -123,6 +123,78 @@ source $ZSH/oh-my-zsh.sh
 # # ---- Eza (better ls) -----
 alias ls="eza --icons=always"
 
+# === Авто-обёртка claude в Herdr (портировано с tmux-версии из dotfiles@006502f) ===
+# Внутри Herdr ($HERDR_ENV задан) — просто запускает claude как обычно.
+# Вне Herdr — ищет workspace, у которого root cwd совпадает с текущей папкой:
+#   - если нашёлся — просто подключается (herdr сам фокусирует нужный workspace по cwd);
+#   - если нет — создаёт workspace для этой папки, запускает в нём claude, затем подключается.
+claude() {
+    if [[ -n "$HERDR_ENV" ]]; then
+        command claude "$@"
+        return
+    fi
+
+    if ! command -v herdr >/dev/null 2>&1; then
+        command claude "$@"
+        return
+    fi
+
+    local cwd="$PWD"
+    local existing_workspace
+    existing_workspace=$(herdr pane list 2>/dev/null | jq -r --arg cwd "$cwd" \
+        '.result.panes[]? | select(.cwd == $cwd) | .workspace_id' 2>/dev/null | head -n1)
+
+    if [[ -z "$existing_workspace" ]]; then
+        local label
+        label=$(basename "$cwd" | tr -c 'a-zA-Z0-9_-' '-')
+        local pane_id
+        pane_id=$(herdr workspace create --cwd "$cwd" --label "$label" --focus 2>/dev/null \
+            | jq -r '.result.root_pane.pane_id' 2>/dev/null)
+        if [[ -n "$pane_id" && "$pane_id" != "null" ]]; then
+            # Ждём готовности шелла в новой панели (иначе .zshrc/nvm ещё не
+            # успели отработать, и PATH не содержит claude — гонка).
+            herdr wait output "$pane_id" --match '➤' --timeout 5000 >/dev/null 2>&1
+            herdr pane run "$pane_id" "command claude ${(q@)@}" >/dev/null 2>&1
+        fi
+    fi
+
+    herdr
+}
+
+# Создаем функцию для отправки BEL
+bell_function() {
+    echo -n $'\a'
+}
+zle -N bell_function
+
+# Привязываем Ctrl+G к этой функции
+bindkey '^G' bell_function
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+# The following lines have been added by Docker Desktop to enable Docker CLI completions.
+fpath=(/Users/bic/.docker/completions $fpath)
+autoload -Uz compinit
+compinit
+# End of Docker CLI completions
+export PATH="$PATH:/Applications/Visual Studio Code.app/Contents/Resources/app/bin"
+export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+export CLAUDE_CODE_MAX_OUTPUT_TOKENS=64000
+
 # ---- Zoxide (better cd) ----
-eval "$(zoxide init zsh)"
-alias cd="z"
+if command -v zoxide >/dev/null 2>&1; then
+    eval "$(zoxide init zsh --cmd 'z')"
+    # Fix: make cd work normally when no arguments
+    function cd() {
+        if [ $# -eq 0 ]; then
+            builtin cd ~
+        else
+            z "$@"
+        fi
+    }
+    alias z="zoxide add"
+else
+    # Fallback: стандартный cd если zoxide не работает
+    alias cd="builtin cd"
+fi
