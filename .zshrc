@@ -222,6 +222,9 @@ export CLAUDE_CODE_MAX_OUTPUT_TOKENS=64000
 export PATH=$PATH:~/go/bin
 umask 0022
 
+# Optional machine-specific settings kept outside the shared dotfiles repo.
+[[ -f "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"
+
 # ---- Zoxide (better cd) ----
 if command -v zoxide >/dev/null 2>&1; then
     eval "$(zoxide init zsh --cmd 'z')"
