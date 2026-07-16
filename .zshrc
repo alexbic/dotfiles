@@ -207,13 +207,16 @@ bindkey '^G' bell_function
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-# The following lines have been added by Docker Desktop to enable Docker CLI completions.
-fpath=(/Users/bic/.docker/completions $fpath)
+if [[ "$(uname -s)" == "Darwin" ]]; then
+    # Docker Desktop and desktop application paths only exist on macOS.
+    [[ -d "$HOME/.docker/completions" ]] && fpath=("$HOME/.docker/completions" $fpath)
+    export PATH="$PATH:/Applications/Visual Studio Code.app/Contents/Resources/app/bin"
+    if [[ -x /usr/libexec/java_home ]]; then
+        export JAVA_HOME=$(/usr/libexec/java_home -v 17 2>/dev/null)
+    fi
+fi
 autoload -Uz compinit
 compinit
-# End of Docker CLI completions
-export PATH="$PATH:/Applications/Visual Studio Code.app/Contents/Resources/app/bin"
-export JAVA_HOME=$(/usr/libexec/java_home -v 17)
 export CLAUDE_CODE_MAX_OUTPUT_TOKENS=64000
 
 export PATH=$PATH:~/go/bin
