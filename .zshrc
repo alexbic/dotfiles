@@ -1,5 +1,19 @@
 ZSH_DISABLE_COMPFIX="true"
 
+# Long-lived Herdr/terminal sessions can retain a stale launchd SSH agent
+# socket after macOS restarts the agent. Recover the current socket before
+# commands such as ssh-add use it.
+if [[ "$(uname -s)" == "Darwin" && ! -S "${SSH_AUTH_SOCK:-}" ]]; then
+    _launchd_ssh_auth_sock=$(
+        launchctl print "gui/$(id -u)/com.openssh.ssh-agent" 2>/dev/null |
+            awk '/SSH_AUTH_SOCK =>/ { print $3; exit }'
+    )
+    if [[ -n "$_launchd_ssh_auth_sock" && -S "$_launchd_ssh_auth_sock" ]]; then
+        export SSH_AUTH_SOCK="$_launchd_ssh_auth_sock"
+    fi
+    unset _launchd_ssh_auth_sock
+fi
+
 # PATH configuration
 export PATH="$HOME/.npm-global/bin:$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
 
